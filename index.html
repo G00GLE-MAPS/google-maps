@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Info — Client-Side Dashboard</title>
+    <style>
+        :root {
+            --bg: #06060d;
+            --card-bg: rgba(18, 18, 35, 0.75);
+            --card-border: rgba(255, 255, 255, 0.06);
+            --text: #d4d4e0;
+            --text-secondary: #9898b0;
+            --accent-1: #6c5ce7;
+            --accent-2: #00cec9;
+            --accent-3: #f9a825;
+            --accent-4: #ff6b6b;
+            --accent-5: #48dbfb;
+            --accent-6: #ff9ff3;
+            --glow: rgba(108, 92, 231, 0.25);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'JetBrains Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-image:
+                radial-gradient(ellipse at 20% 20%, rgba(108, 92, 231, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 75% 60%, rgba(0, 206, 201, 0.06) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 90%, rgba(249, 168, 37, 0.04) 0%, transparent 55%),
+                radial-gradient(ellipse at 85% 15%, rgba(255, 107, 107, 0.04) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Subtle animated grid overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.03;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.5) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: gridShift 20s linear infinite;
+        }
+
+        @keyframes gridShift {
+            0%,
+            100% {
+                transform: translate(0, 0);
+            }
+            25% {
+                transform: translate(2px, -2px);
+            }
+            50% {
+                transform: translate(0, -4px);
+            }
+            75% {
+                transform: translate(-2px, -2px);
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 1100px;
+            padding: 10px 0 40px;
+        }
+
+        /* ── Header ─────────────────────── */
+        .header {
+            text-align: center;
+            margin-bottom: 36px;
+            animation: fadeInUp 0.7s ease forwards;
+        }
+        .header .badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--accent-2);
+            border: 1px solid rgba(0, 206, 201, 0.35);
+            border-radius: 50px;
+            padding: 6px 16px;
+            margin-bottom: 14px;
+            background: rgba(0, 206, 201, 0.05);
+            backdrop-filter: blur(4px);
+        }
+        .header h1 {
+            font-size: clamp(1.6rem, 3.5vw, 2.3rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #e0e0f0 0%, #ffffff 40%, #b0b0d0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+        .header .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.03em;
+        }
+        .header .dot-indicator {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #4ade80;
+            margin-right: 6px;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
+            }
+        }
+
+        /* ── Grid ──────────────────────── */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+            gap: 18px;
+        }
+
+        /* ── Card ──────────────────────── */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            padding: 22px 24px;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+            animation: fadeInUp 0.6s ease forwards;
+            opacity: 0;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.25);
+        }
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.14);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+            transform: translateY(-2px);
+        }
+        .card::after {
+            content: '';
+            position: absolute;
+            top: -30px;
+            right: -30px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            filter: blur(50px);
+            opacity: 0.08;
+            pointer-events: none;
+            transition: var(--transition);
+        }
+        .card:hover::after {
+            opacity: 0.16;
+            width: 100px;
+            height: 100px;
+        }
+        .card.accent-purple::after {
+            background: var(--accent-1);
+        }
+        .card.accent-cyan::after {
+            background: var(--accent-2);
+        }
+        .card.accent-amber::after {
+            background: var(--accent-3);
+        }
+        .card.accent-red::after {
+            background: var(--accent-4);
+        }
+        .card.accent-blue::after {
+            background: var(--accent-5);
+        }
+        .card.accent-pink::after {
+            background: var(--accent-6);
+        }
+
+        /* Staggered card animation */
+        .card:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+        .card:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+        .card:nth-child(3) {
+            animation-delay: 0.15s;
+        }
+        .card:nth-child(4) {
+            animation-delay: 0.2s;
+        }
+        .card:nth-child(5) {
+            animation-delay: 0.25s;
+        }
+        .card:nth-child(6) {
+            animation-delay: 0.3s;
+        }
+        .card:nth-child(7) {
+            animation-delay: 0.35s;
+        }
+        .card:nth-child(8) {
+            animation-delay: 0.4s;
+        }
+        .card:nth-child(9) {
+            animation-delay: 0.45s;
+        }
+        .card:nth-child(10) {
+            animation-delay: 0.5s;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(28px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card .icon-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .card .icon-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .icon-circle.purple {
+            background: rgba(108, 92, 231, 0.18);
+            color: #b4a7f0;
+        }
+        .icon-circle.cyan {
+            background: rgba(0, 206, 201, 0.18);
+            color: #5ee8e4;
+        }
+        .icon-circle.amber {
+            background: rgba(249, 168, 37, 0.18);
+            color: #fccb6e;
+        }
+        .icon-circle.red {
+            background: rgba(255, 107, 107, 0.18);
+            color: #ff9a9a;
+        }
+        .icon-circle.blue {
+            background: rgba(72, 219, 251, 0.18);
+            color: #7ee8fc;
+        }
+        .icon-circle.pink {
+            background: rgba(255, 159, 243, 0.18);
+            color: #ffbdf6;
+        }
+
+        .card .label {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .card .value {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: #e8e8f0;
+            word-break: break-all;
+            line-height: 1.45;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            margin-top: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: var(--transition);
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .value.loading {
+            color: var(--text-secondary);
+            font-style: italic;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+        .value.highlight {
+            color: var(--accent-2);
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .value.fingerprint {
+            font-size: 0.75rem;
+            letter-spacing: 0.04em;
+        }
+
+        /* Scrollbar for values */
+        .value::-webkit-scrollbar {
+            width: 4px;
+        }
+        .value::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .value::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        /* ── Footer ────────────────────── */
+        .footer-note {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.04em;
+            opacity: 0.7;
+            animation: fadeInUp 0.7s ease forwards;
+            animation-delay: 0.55s;
+            opacity: 0;
+        }
+        .footer-note .lock-icon {
+            display: inline-block;
+            margin: 0 4px;
+        }
+
+        /* ── Toast / Copy Feedback ─────── */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1e1e30;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 50px;
+            font-size: 0.82rem;
+            letter-spacing: 0.03em;
+            z-index: 99;
+            pointer-events: none;
+            transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Responsive ────────────────── */
+        @media (max-width: 700px) {
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            .card {
+                padding: 16px 18px;
+            }
+            .card .value {
+                font-size: 0.78rem;
+                padding: 10px 12px;
+            }
+            .header h1 {
+                font-size: 1.4rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            body {
+                padding: 10px;
+            }
+            .card {
+                padding: 14px 15px;
+                border-radius: 12px;
+            }
+            .card .icon-circle {
+                width: 30px;
+                height: 30px;
+                font-size: 0.9rem;
+            }
+            .card .label {
+                font-size: 0.7rem;
+            }
+            .card .value {
+                font-size: 0.72rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="badge"><span class="dot-indicator"></span> Client-Side Only</div>
+            <h1>System &amp; Hardware Profile</h1>
+            <p class="subtitle">All data stays on your device — nothing is ever transmitted</p>
+        </header>
+
+        <!-- Info Grid -->
+        <div class="grid">
+            <!-- Card 1: Identity / Hostname -->
+            <div class="card accent-purple">
+                <div class="icon-row">
+                    <div class="icon-circle purple">&#128100;</div>
+                    <span class="label">Identity / Hostname</span>
+                </div>
+                <div class="value loading" id="val-identity">Detecting&hellip;</div>
+            </div>
+
+            <!-- Card 2: Public IP -->
+            <div class="card accent-cyan">
+                <div class="icon-row">
+                    <div class="icon-circle cyan">&#127758;</div>
+                    <span class="label">Public IP Address</span>
+                </div>
+                <div class="value loading highlight" id="val-ip">Fetching&hellip;</div>
+            </div>
+
+            <!-- Card 3: Local Network (WebRTC) -->
+            <div class="card accent-blue">
+                <div class="icon-row">
+                    <div class="icon-circle blue">&#128268;</div>
+                    <span class="label">Local Network (WebRTC)</span>
+                </div>
+                <div class="value loading" id="val-local">Gathering ICE candidates&hellip;</div>
+            </div>
+
+            <!-- Card 4: Operating System -->
+            <div class="card accent-green" style="--accent-green: #4ade80;">
+                <div class="icon-row">
+                    <div class="icon-circle" style="background:rgba(74,222,128,0.18);color:#6ee7a0;">&#128421;</div>
+                    <span class="label">Operating System</span>
+                </div>
+                <div class="value" id="val-os"></div>
+            </div>
+            <style>
+                .card.accent-green::after {
+                    background: #4ade80;
+                }
+            </style>
+
+            <!-- Card 5: User Agent -->
+            <div class="card accent-amber">
+                <div class="icon-row">
+                    <div class="icon-circle amber">&#128187;</div>
+                    <span class="label">User Agent &amp; Browser</span>
+                </div>
+                <div class="value" id="val-ua"></div>
+            </div>
+
+            <!-- Card 6: WebGL / GPU -->
+            <div class="card accent-pink">
+                <div class="icon-row">
+                    <div class="icon-circle pink">&#127912;</div>
+                    <span class="label">WebGL / GPU Renderer</span>
+                </div>
+                <div class="value" id="val-webgl"></div>
+            </div>
+
+            <!-- Card 7: Canvas Fingerprint -->
+            <div class="card accent-red">
+                <div class="icon-row">
+                    <div class="icon-circle red">&#128396;</div>
+                    <span class="label">Canvas Fingerprint</span>
+                </div>
+                <div class="value fingerprint" id="val-canvas"></div>
+            </div>
+
+            <!-- Card 8: Hardware Profile -->
+            <div class="card accent-purple">
+                <div class="icon-row">
+                    <div class="icon-circle purple">&#9881;</div>
+                    <span class="label">Hardware Profile</span>
+                </div>
+                <div class="value" id="val-hardware"></div>
+            </div>
+
+            <!-- Card 9: Display Info -->
+            <div class="card accent-cyan">
+                <div class="icon-row">
+                    <div class="icon-circle cyan">&#128247;</div>
+                    <span class="label">Display &amp; Screen</span>
+                </div>
+                <div class="value" id="val-display"></div>
+            </div>
+
+            <!-- Card 10: Audio Fingerprint -->
+            <div class="card accent-amber">
+                <div class="icon-row">
+                    <div class="icon-circle amber">&#128266;</div>
+                    <span class="label">Audio Fingerprint</span>
+                </div>
+                <div class="value loading" id="val-audio">Computing&hellip;</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <p class="footer-note">
+            <span class="lock-icon">&#128274;</span> All analysis runs entirely in your browser.
+            No data is sent to any server. Your privacy is fully respected.
+        </p>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        (function() {
+            // ─── Utility Functions ────────────────────────────
+            const $ = (id) => document.getElementById(id);
+
+            function setVal(id, html, isLoading = false) {
+                const el = $(id);
+                if (!el) return;
+                el.innerHTML = html;
+                if (isLoading) {
+                    el.classList.add('loading');
+                } else {
+                    el.classList.remove('loading');
+                }
+            }
+
+            function showToast(msg) {
+                const toast = $('toast');
+                toast.textContent = msg;
+                toast.classList.add('show');
+                clearTimeout(toast._timeout);
+                toast._timeout = setTimeout(() => toast.classList.remove('show'), 2200);
+            }
+
+            // Simple hash function (djb2)
+            function hashString(str) {
+                let hash = 5381;
+                for (let i = 0; i < str.length; i++) {
+                    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                    hash = hash & hash; // Convert to 32-bit integer
+                }
+                return (hash >>> 0).toString(16).padStart(8, '0').toUpperCase();
+            }
+
+            // ─── OS Detection ─────────────────────────────────
+            function detectOS() {
+                const ua = navigator.userAgent;
+                const platform = navigator.platform || '';
+                const oscpu = navigator.oscpu || '';
+                let osName = 'Unknown';
+                let osVersion = '';
+
+                if (ua.includes('Windows NT 11.0') || ua.includes('Windows NT 10.0')) {
+                    osName = 'Windows';
+                    const match = ua.match(/Windows NT (\d+\.\d+)/);
+                    if (match) {
+                        const verMap = { '10.0': '10 / 11', '11.0': '11', '6.3': '8.1', '6.2': '8', '6.1': '7' };
+                        osVersion = verMap[match[1]] || match[1];
+                    }
+                } else if (ua.includes('Mac OS X')) {
+                    osName = 'macOS';
+                    const match = ua.match(/Mac OS X (\d+[._]\d+[._]?\d*)/);
+                    if (match) osVersion = match[1].replace(/_/g, '.');
+                } else if (ua.includes('Linux')) {
+                    osName = 'Linux';
+                    if (ua.includes('Android')) {
+                        osName = 'Android';
+                        const match = ua.match(/Android\s([\d.]+)/);
+                        if (match) osVersion = match[1];
+                    } else if (ua.includes('CrOS')) {
+                        osName = 'ChromeOS';
+                    }
+                } else if (ua.includes('iPhone') || ua.includes('iPad')) {
+                    osName = 'iOS';
+                    const match = ua.match(/OS\s(\d+[._]\d+[._]?\d*)/);
+                    if (match) osVersion = match[1].replace(/_/g, '.');
+                }
+
+                const arch = platform.includes('64') ? '64-bit' : platform.includes('arm') ? 'ARM' : '32-bit';
+                const fullOS = osVersion ? `${osName} ${osVersion} (${arch})` : `${osName} (${arch})`;
+
+                return {
+                    name: osName,
+                    version: osVersion,
+                    architecture: arch,
+                    full: fullOS,
+                    platform: platform,
+                    oscpu: oscpu,
+                };
+            }
+
+            // ─── Browser Detection ────────────────────────────
+            function detectBrowser() {
+                const ua = navigator.userAgent;
+                let browserName = 'Unknown';
+                let browserVersion = '';
+
+                if (ua.includes('Firefox/')) {
+                    browserName = 'Firefox';
+                    browserVersion = ua.match(/Firefox\/([\d.]+)/)?.[1] || '';
+                } else if (ua.includes('Edg/')) {
+                    browserName = 'Edge';
+                    browserVersion = ua.match(/Edg\/([\d.]+)/)?.[1] || '';
+                } else if (ua.includes('Chrome/')) {
+                    browserName = 'Chrome';
+                    browserVersion = ua.match(/Chrome\/([\d.]+)/)?.[1] || '';
+                } else if (ua.includes('Safari/') && !ua.includes('Chrome')) {
+                    browserName = 'Safari';
+                    browserVersion = ua.match(/Version\/([\d.]+)/)?.[1] || '';
+                } else if (ua.includes('OPR/') || ua.includes('Opera/')) {
+                    browserName = 'Opera';
+                    browserVersion = ua.match(/OPR\/([\d.]+)/)?.[1] || ua.match(/Opera\/([\d.]+)/)?.[1] || '';
+                }
+
+                return {
+                    name: browserName,
+                    version: browserVersion,
+                    full: browserVersion ? `${browserName} ${browserVersion}` : browserName,
+                    userAgent: ua,
+                    language: navigator.language || 'N/A',
+                    languages: navigator.languages ? navigator.languages.join(', ') : 'N/A',
+                    cookieEnabled: navigator.cookieEnabled,
+                    doNotTrack: navigator.doNotTrack || window.doNotTrack || 'N/A',
+                    onLine: navigator.onLine,
+                };
+            }
+
+            // ─── WebGL Detection ──────────────────────────────
+            function detectWebGL() {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (!gl) {
+                    return { supported: false, renderer: 'WebGL not supported', vendor: 'N/A', version: 'N/A',
+                        extensions: 'N/A', maxTextureSize: 'N/A' };
+                }
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                const renderer = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'Hidden by browser';
+                const vendor = debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'Hidden by browser';
+                const version = gl.getParameter(gl.VERSION);
+                const shadingLang = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+                const maxTexSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+                const extensions = gl.getSupportedExtensions ? gl.getSupportedExtensions().length : 'N/A';
+                const maxViewport = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+
+                return {
+                    supported: true,
+                    renderer: renderer,
+                    vendor: vendor,
+                    version: version,
+                    shadingLanguage: shadingLang,
+                    maxTextureSize: maxTexSize,
+                    maxViewport: maxViewport ? `${maxViewport[0]}×${maxViewport[1]}` : 'N/A',
+                    extensionsCount: extensions,
+                };
+            }
+
+            // ─── Canvas Fingerprint ───────────────────────────
+            function getCanvasFingerprint() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 280;
+                canvas.height = 80;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return { hash: 'N/A', dataURL: '' };
+
+                // Draw various elements that render slightly differently across systems
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillText('Browser Fingerprint ✦', 8, 30);
+
+                ctx.font = 'italic 11px "Georgia", serif';
+                ctx.fillStyle = '#6c5ce7';
+                ctx.fillText('Canvas Hash: ' + Date.now().toString(36), 10, 52);
+
+                ctx.strokeStyle = 'rgba(0,206,201,0.7)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(240, 20, 12, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(249,168,37,0.35)';
+                ctx.fill();
+
+                ctx.fillStyle = '#ff6b6b';
+                ctx.beginPath();
+                ctx.moveTo(220, 55);
+                ctx.lineTo(250, 70);
+                ctx.lineTo(235, 75);
+                ctx.closePath();
+                ctx.fill();
+
+                // Subtle gradient
+                const grad = ctx.createLinearGradient(0, 60, 200, 80);
+                grad.addColorStop(0, 'rgba(108,92,231,0.3)');
+                grad.addColorStop(1, 'rgba(0,206,201,0.2)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 58, 200, 22);
+
+                const dataURL = canvas.toDataURL();
+                const hash = hashString(dataURL);
+                return { hash: hash, dataURL: dataURL.substring(0, 80) + '...' };
+            }
+
+            // ─── Audio Fingerprint ────────────────────────────
+            function getAudioFingerprint() {
+                return new Promise((resolve) => {
+                    try {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        if (!AudioContext) {
+                            resolve({ hash: 'AudioContext not available', details: 'API unsupported' });
+                            return;
+                        }
+                        const ac = new AudioContext();
+                        const osc = ac.createOscillator();
+                        const compressor = ac.createDynamicsCompressor();
+                        const analyser = ac.createAnalyser();
+                        analyser.fftSize = 256;
+
+                        osc.type = 'triangle';
+                        osc.frequency.value = 440;
+                        osc.connect(compressor);
+                        compressor.connect(analyser);
+                        // Don't connect to destination — silent analysis
+
+                        const dataArray = new Float32Array(analyser.frequencyBinCount);
+
+                        osc.start(0);
+                        // Sample after a very short time
+                        setTimeout(() => {
+                            analyser.getFloatTimeDomainData(dataArray);
+                            const rawString = Array.from(dataArray.slice(0, 30)).map(v => v.toFixed(
+                                10)).join(',');
+                            const hash = hashString(rawString);
+                            osc.stop();
+                            ac.close();
+                            resolve({ hash: hash, details: `FFT size: 256, samples: 30` });
+                        }, 80);
+
+                        // Timeout safety
+                        setTimeout(() => {
+                            try { osc.stop();
+                                ac.close(); } catch (e) {}
+                            resolve({ hash: 'Timeout', details: 'Audio fingerprint timed out' });
+                        }, 2000);
+                    } catch (e) {
+                        resolve({ hash: 'Error: ' + e.message, details: 'Audio API error' });
+                    }
+                });
+            }
+
+            // ─── WebRTC Local IP / Hostname ──────────────────
+            function getLocalNetworkInfo() {
+                return new Promise((resolve) => {
+                    const results = {
+                        hostnames: [],
+                        localIPs: [],
+                        rawCandidates: [],
+                    };
+                    let pc;
+                    try {
+                        pc = new RTCPeerConnection({
+                            iceServers: [], // No STUN — purely local, zero external requests
+                        });
+                        pc.createDataChannel(''); // Needed to trigger ICE gathering
+                        pc.createOffer().then(offer => pc.setLocalDescription(offer)).catch(() => {});
+
+                        pc.onicecandidate = (e) => {
+                            if (!e.candidate) {
+                                // ICE gathering complete
+                                resolve(results);
+                                pc.close();
+                                return;
+                            }
+                            const candidate = e.candidate.candidate;
+                            results.rawCandidates.push(candidate);
+
+                            // Parse hostname from mDNS candidates
+                            const mdnsMatch = candidate.match(/([a-zA-Z0-9_-]+\.local)/);
+                            if (mdnsMatch && !results.hostnames.includes(mdnsMatch[1])) {
+                                results.hostnames.push(mdnsMatch[1]);
+                            }
+
+                            // Parse local IPs (non-mDNS)
+                            const ipMatch = candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+                            if (ipMatch) {
+                                const ip = ipMatch[1];
+                                const isLocal = ip.startsWith('10.') || ip.startsWith('192.168.') || ip
+                                    .startsWith('172.') || ip.startsWith('127.');
+                                if (isLocal && !results.localIPs.includes(ip)) {
+                                    results.localIPs.push(ip);
+                                }
+                            }
+                        };
+
+                        // Timeout after 4 seconds
+                        setTimeout(() => {
+                            try { pc.close(); } catch (e) {}
+                            resolve(results);
+                        }, 4000);
+                    } catch (e) {
+                        resolve({ hostnames: [], localIPs: [], rawCandidates: [], error: e.message });
+                        try { pc && pc.close(); } catch (e2) {}
+                    }
+                });
+            }
+
+            // ─── Public IP (ipify — simple, no auth) ─────────
+            function getPublicIP() {
+                return new Promise((resolve) => {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 6000);
+                    fetch('https://api.ipify.org?format=json', { signal: controller.signal })
+                        .then(r => r.json())
+                        .then(data => {
+                            clearTimeout(timeout);
+                            resolve({ ip: data.ip, source: 'api.ipify.org' });
+                        })
+                        .catch(() => {
+                            clearTimeout(timeout);
+                            // Fallback: try another service
+                            fetch('https://api.ipify.org?format=json', { signal: controller.signal })
+                                .then(r => r.json())
+                                .then(data => resolve({ ip: data.ip, source: 'api.ipify.org (retry)' }))
+                                .catch(() => resolve({ ip: 'Unable to detect', source: 'All services failed' }));
+                        });
+                });
+            }
+
+            // ─── Main Execution ──────────────────────────────
+            async function init() {
+                // --- Static / Instant Data ---
+
+                // OS
+                const osInfo = detectOS();
+                setVal('val-os', `
+                    <strong>OS:</strong> ${osInfo.full}<br>
+                    <strong>Platform:</strong> ${osInfo.platform}<br>
+                    <strong>Architecture:</strong> ${osInfo.architecture}<br>
+                    <span style="opacity:0.6;font-size:0.7rem;">oscpu: ${osInfo.oscpu || 'N/A'}</span>
+                `);
+
+                // Browser / UA
+                const browserInfo = detectBrowser();
+                setVal('val-ua', `
+                    <strong>Browser:</strong> ${browserInfo.full}<br>
+                    <strong>Language:</strong> ${browserInfo.language}<br>
+                    <strong>Cookies:</strong> ${browserInfo.cookieEnabled ? 'Enabled' : 'Disabled'}<br>
+                    <strong>Online:</strong> ${browserInfo.onLine ? 'Yes' : 'No'}<br>
+                    <span style="opacity:0.55;font-size:0.68rem;word-break:break-all;">${browserInfo.userAgent}</span>
+                `);
+
+                // WebGL
+                const webglInfo = detectWebGL();
+                if (webglInfo.supported) {
+                    setVal('val-webgl', `
+                        <strong>Renderer:</strong> ${webglInfo.renderer}<br>
+                        <strong>Vendor:</strong> ${webglInfo.vendor}<br>
+                        <strong>Version:</strong> ${webglInfo.version}<br>
+                        <strong>Max Texture:</strong> ${webglInfo.maxTextureSize}px<br>
+                        <strong>Extensions:</strong> ${webglInfo.extensionsCount}
+                    `);
+                } else {
+                    setVal('val-webgl', `<em>${webglInfo.renderer}</em>`);
+                }
+
+                // Canvas Fingerprint
+                const canvasFP = getCanvasFingerprint();
+                setVal('val-canvas', `
+                    <strong>Hash:</strong> <span style="color:#ff9ff3;">${canvasFP.hash}</span><br>
+                    <span style="opacity:0.5;font-size:0.65rem;word-break:break-all;">${canvasFP.dataURL}</span>
+                `);
+
+                // Hardware
+                const cpuCores = navigator.hardwareConcurrency || 'Unknown';
+                const deviceMemory = navigator.deviceMemory || 'Unknown';
+                const maxTouchPoints = navigator.maxTouchPoints || 0;
+                const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+                setVal('val-hardware', `
+                    <strong>CPU Cores:</strong> ${cpuCores}<br>
+                    <strong>Device Memory:</strong> ${deviceMemory}${deviceMemory !== 'Unknown' ? ' GB' : ''}<br>
+                    <strong>Touch Points:</strong> ${maxTouchPoints}<br>
+                    <strong>Mobile Device:</strong> ${isMobile ? 'Yes' : 'No'}<br>
+                    <strong>Color Depth:</strong> ${screen.colorDepth || 'N/A'}-bit<br>
+                    <strong>Pixel Ratio:</strong> ${window.devicePixelRatio || 1}x
+                `);
+
+                // Display
+                setVal('val-display', `
+                    <strong>Screen:</strong> ${screen.width}×${screen.height}px<br>
+                    <strong>Available:</strong> ${screen.availWidth}×${screen.availHeight}px<br>
+                    <strong>Orientation:</strong> ${screen.orientation?.type || 'N/A'}<br>
+                    <strong>Color Depth:</strong> ${screen.colorDepth}-bit<br>
+                    <strong>Pixel Ratio:</strong> ${(window.devicePixelRatio || 1).toFixed(2)}x<br>
+                    <strong>Touch Support:</strong> ${maxTouchPoints > 0 ? 'Yes (' + maxTouchPoints + ' pts)' : 'No'}
+                `);
+
+                // --- Async Data ---
+
+                // Public IP
+                getPublicIP().then(ipData => {
+                    setVal('val-ip', `
+                        <strong>${ipData.ip}</strong><br>
+                        <span style="font-size:0.65rem;opacity:0.5;">via ${ipData.source}</span>
+                    `);
+                });
+
+                // Local Network (WebRTC)
+                getLocalNetworkInfo().then(netInfo => {
+                    let html = '';
+                    if (netInfo.error) {
+                        html = `<em>Error: ${netInfo.error}</em>`;
+                    } else if (netInfo.hostnames.length === 0 && netInfo.localIPs.length === 0) {
+                        html =
+                            `<em>No local candidates found</em><br><span style="opacity:0.5;font-size:0.65rem;">(Browser may restrict WebRTC local IP discovery)</span>`;
+                    } else {
+                        if (netInfo.hostnames.length > 0) {
+                            html += `<strong>Hostname(s):</strong> ${netInfo.hostnames.join(', ')}<br>`;
+                        }
+                        if (netInfo.localIPs.length > 0) {
+                            html += `<strong>Local IP(s):</strong> ${netInfo.localIPs.join(', ')}<br>`;
+                        }
+                        if (netInfo.rawCandidates.length > 0) {
+                            html +=
+                                `<span style="opacity:0.45;font-size:0.6rem;">Candidates: ${netInfo.rawCandidates.length}</span>`;
+                        }
+                    }
+                    setVal('val-local', html || '<em>No data</em>');
+                });
+
+                // Identity — combine hostname from WebRTC + generate browser identity hash
+                getLocalNetworkInfo().then(netInfo => {
+                    const hostnames = netInfo.hostnames || [];
+                    const identityHash = hashString(
+                        navigator.userAgent +
+                        (navigator.hardwareConcurrency || '') +
+                        screen.width + 'x' + screen.height +
+                        (navigator.language || '')
+                    );
+                    let identityHTML = '';
+                    if (hostnames.length > 0) {
+                        identityHTML += `<strong>Hostname:</strong> ${hostnames[0]}<br>`;
+                    } else {
+                        identityHTML += `<strong>Hostname:</strong> <em>Not detectable</em><br>`;
+                    }
+                    identityHTML +=
+                        `<strong>Browser Identity Hash:</strong> <span style="color:#b4a7f0;">${identityHash}</span><br>`;
+                    identityHTML +=
+                        `<span style="opacity:0.45;font-size:0.6rem;">(Derived from browser & system characteristics)</span>`;
+                    setVal('val-identity', identityHTML);
+                });
+
+                // Audio Fingerprint
+                getAudioFingerprint().then(audioFP => {
+                    setVal('val-audio', `
+                        <strong>Hash:</strong> <span style="color:#fccb6e;">${audioFP.hash}</span><br>
+                        <span style="opacity:0.5;font-size:0.65rem;">${audioFP.details}</span>
+                    `);
+                });
+
+                // ─── Click-to-copy on value divs ──────────────
+                document.querySelectorAll('.value').forEach(valueEl => {
+                    valueEl.style.cursor = 'pointer';
+                    valueEl.title = 'Click to copy this info';
+                    valueEl.addEventListener('click', function(e) {
+                        const text = this.innerText || this.textContent || '';
+                        if (text.trim() && !text.includes('Detecting') && !text.includes(
+                                'Fetching') && !text.includes('Gathering') && !text.includes(
+                                'Computing')) {
+                            navigator.clipboard.writeText(text.trim()).then(() => {
+                                showToast('✓ Copied to clipboard');
+                            }).catch(() => {
+                                showToast('⚠ Failed to copy');
+                            });
+                        }
+                    });
+                });
+            }
+
+            // ─── Start ────────────────────────────────────────
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>
